@@ -93,3 +93,43 @@ spec:
         git clone $(params.url) repo
         cd repo
         git checkout $(params.revision)
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: flake8-custom
+spec:
+  description: "Run flake8 linting in a restricted PSP-compliant container."
+  workspaces:
+    - name: source
+  params:
+    - name: args
+      type: string
+      default: "."
+  steps:
+    - name: flake8
+      image: python:3.10-alpine
+      workingDir: $(workspaces.source.path)
+      env:
+      - name: HOME
+        value: /tekton/home
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+        capabilities:
+          drop:
+            - ALL
+      script: |
+        #!/bin/sh
+        set -eu
+
+        # Add pip user install bin to PATH
+        export PATH=$HOME/.local/bin:$PATH
+
+        echo "Installing flake8..."
+        pip install --no-cache-dir flake8
+
+        echo "Running flake8 with args: $(params.args)"
+        flake8 $(params.args) || true
+
