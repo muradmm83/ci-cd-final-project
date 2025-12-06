@@ -61,3 +61,35 @@ spec:
         python -m pip install --upgrade pip wheel
         pip install -r requirements.txt
         nosetests $(params.args)
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: git-clone-custom
+spec:
+  workspaces:
+    - name: output
+  params:
+    - name: url
+      type: string
+    - name: revision
+      type: string
+      default: "main"
+  steps:
+    - name: clone
+      image: alpine/git:latest
+      workingDir: $(workspaces.output.path)
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+        capabilities:
+          drop:
+            - ALL
+      script: |
+        #!/bin/sh
+        set -eu
+        echo "Cloning $(params.url) ..."
+        git clone $(params.url) repo
+        cd repo
+        git checkout $(params.revision)
